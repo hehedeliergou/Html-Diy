@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>通用多题库智能刷题系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 隐藏滚动条但保持可滚动 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* 选项平滑过渡 */
+        .option-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-300">
+
+    <header class="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-50 border-b border-slate-200 dark:border-slate-700 transition-colors duration-300">
+        <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-graduation-cap text-indigo-600 dark:text-indigo-400 text-2xl"></i>
+                <select id="bankSelect" class="bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold py-1.5 px-3 rounded-lg border-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-base max-w-[180px] md:max-w-xs outline-none">
+                    <option value="" disabled selected>请先添加题库...</option>
+                    </select>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <button id="themeToggle" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400">
+                    <i class="fa-solid fa-moon text-xl dark:hidden"></i>
+                    <i class="fa-solid fa-sun text-xl hidden dark:block"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-6 flex flex-col gap-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-xs border border-slate-100 dark:border-slate-700/50 grid grid-cols-3 gap-2 text-center transition-colors duration-300">
+            <div>
+                <p class="text-xs text-slate-400 dark:text-slate-500 mb-1">当前进度</p>
+                <p class="text-lg font-bold text-slate-700 dark:text-slate-300" id="progressTxt">0 / 0</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-400 dark:text-slate-500 mb-1">本次正确率</p>
+                <p class="text-lg font-bold text-emerald-600 dark:text-emerald-400" id="accuracyTxt">0%</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-400 dark:text-slate-500 mb-1">已去重记忆</p>
+                <p class="text-lg font-bold text-indigo-600 dark:text-indigo-400" id="historyTxt">0</p>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50 flex-1 flex flex-col min-h-[350px] transition-colors duration-300">
+            <div class="flex items-center justify-between mb-4">
+                <span id="questionTypeBadge" class="px-2.5 py-1 text-xs font-semibold rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
+                    单选题
+                </span>
+                <span id="questionIndexBadge" class="text-xs text-slate-400 dark:text-slate-500">
+                    题目序号: --
+                </span>
+            </div>
+
+            <div id="questionContainer" class="text-base md:text-lg font-medium leading-relaxed mb-6 text-slate-800 dark:text-slate-100">
+                请在顶部选择或在代码中配置您的题库数据。
+            </div>
+
+            <div id="optionsContainer" class="space-y-3 flex-1">
+                </div>
+
+            <div id="explainContainer" class="mt-6 p-4 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-100 dark:border-slate-800 hidden">
+                <div class="flex items-center space-x-2 text-sm font-bold mb-2">
+                    <i class="fa-solid fa-circle-info text-indigo-500"></i>
+                    <span>参考解析：</span>
+                    <span id="correctAnswerTxt" class="text-emerald-600 dark:text-emerald-400 ml-2"></span>
+                </div>
+                <p id="explainTxt" class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed"></p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 py-4 sticky bottom-0 z-40 transition-colors duration-300">
+        <div class="max-w-4xl mx-auto px-4 flex items-center justify-between gap-4">
+            <button id="clearHistoryBtn" class="px-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 text-sm font-medium hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors">
+                <i class="fa-solid fa-trash-can mr-1.5"></i>重置当前库
+            </button>
+            <div class="flex items-center gap-3 flex-1 justify-end">
+                <button id="submitBtn" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-xs disabled:opacity-40 transition-all hidden">
+                    提交答案
+                </button>
+                <button id="nextBtn" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 text-sm font-semibold shadow-xs hover:bg-slate-700 dark:hover:bg-slate-200 transition-all">
+                    下一题 <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ==========================================
+        // 1. 数据中心 (用户后续自行 DIY 的题库存储库) 
+        // ==========================================
+        const DATA_CENTER = {
+            // 请在此处放置你的题库数据，数据结构示例如下 ：
+            /*
+            "my_bank_key": [
+                {
+                    "type": "single", // single为单选或判断，multi为多选 
+                    "question": "题干内容",
+                    "options": ["A选项", "B选项", "C选项", "D选项"],
+                    "answer": [0], // 正确答案索引，从0开始计数 
+                    "explain": "这里编写速解或详细解析" 
+                }
+            ]
+            */
+        };
+
+        // ==========================================
+        // 2. 系统全局状态管理 
+        // ==========================================
+        let currentBankKey = "";       // 当前激活的题库 Key 
+        let currentPool = [];          // 当前轮次抽取的 10 道题缓存
+        let currentIndex = 0;          // 当前轮次做题的指针索引
+        let selectedIndexes = [];      // 存储用户当前题目的选择
+        let isAnswered = false;        // 当前题是否已对判定/提交
+        
+        // 统计数据
+        let currentRoundCorrect = 0;   // 本轮答对数
+        let currentRoundAnswered = 0;  // 本轮已答数
+
+        // ==========================================
+        // 3. DOM 元素初始化挂载
+        // ==========================================
+        const bankSelect = document.getElementById('bankSelect');
+        const questionTypeBadge = document.getElementById('questionTypeBadge');
+        const questionIndexBadge = document.getElementById('questionIndexBadge');
+        const questionContainer = document.getElementById('questionContainer');
+        const optionsContainer = document.getElementById('optionsContainer');
+        const explainContainer = document.getElementById('explainContainer');
+        const correctAnswerTxt = document.getElementById('correctAnswerTxt');
+        const explainTxt = document.getElementById('explainTxt');
+        
+        const progressTxt = document.getElementById('progressTxt');
+        const accuracyTxt = document.getElementById('accuracyTxt');
+        const historyTxt = document.getElementById('historyTxt');
+        
+        const submitBtn = document.getElementById('submitBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        const themeToggle = document.getElementById('themeToggle');
+
+        // ==========================================
+        // 4. 核心隔离机制：本地存储记忆器 
+        // ==========================================
+        function getHistory() {
+            if (!currentBankKey) return [];
+            const data = localStorage.getItem(`brush_history_${currentBankKey}`);
+            return data ? JSON.parse(data) : [];
+        }
+
+        function saveToHistory(questionStr) {
+            if (!currentBankKey) return;
+            let history = getHistory();
+            if (!history.includes(questionStr)) {
+                history.push(questionStr);
+                localStorage.setItem(`brush_history_${currentBankKey}`, JSON.stringify(history));
+            }
+            updateStatsView();
+        }
+
+        function clearCurrentBankHistory() {
+            if (!currentBankKey) return;
+            if (confirm(`确定要清空【${bankSelect.options[bankSelect.selectedIndex].text}】的去重记忆刷题记录吗？`)) {
+                localStorage.removeItem(`brush_history_${currentBankKey}`);
+                initNewRound();
+            }
+        }
+
+        // ==========================================
+        // 5. 核心算法：自适应动态无重复抽题引擎 
+        // ==========================================
+        function initNewRound() {
+            if (!currentBankKey || !DATA_CENTER[currentBankKey]) return;
+            
+            const totalBank = DATA_CENTER[currentBankKey];
+            const history = getHistory();
+            
+            // 过滤掉已经记住的题目
+            let available = totalBank.filter(q => !history.includes(q.question));
+            
+            // 如果全部题库都刷完了，强制清空历史实现完美闭环复刷
+            if (available.length === 0) {
+                localStorage.removeItem(`brush_history_${currentBankKey}`);
+                available = [...totalBank];
+            }
+            
+            // 洗牌打乱未刷题目
+            const shuffled = available.sort(() => Math.random() - 0.5);
+            
+            // 自适应抽取：足量抽10道，不足则全抽，防止死循环 
+            const drawSize = Math.min(10, shuffled.length); [cite: 2]
+            currentPool = shuffled.slice(0, drawSize);
+            
+            currentIndex = 0;
+            currentRoundCorrect = 0;
+            currentRoundAnswered = 0;
+            
+            renderCurrentQuestion();
+        }
+
+        // ==========================================
+        // 6. UI 视图渲染引擎
+        // ==========================================
+        function renderCurrentQuestion() {
+            // 重置状态
+            selectedIndexes = [];
+            isAnswered = false;
+            explainContainer.classList.add('hidden');
+            submitBtn.disabled = true;
+
+            if (currentPool.length === 0) {
+                questionContainer.innerHTML = `<div class="text-center py-8 text-slate-400">当前题库无有效题目数据。</div>`;
+                optionsContainer.innerHTML = "";
+                return;
+            }
+
+            const q = currentPool[currentIndex];
+            
+            // 题型判定 
+            const isMulti = q.type === 'multi';
+            questionTypeBadge.textContent = isMulti ? "多选题" : (q.options.length === 2 ? "判断题" : "单选题");
+            questionTypeBadge.className = isMulti 
+                ? "px-2.5 py-1 text-xs font-semibold rounded-md bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400"
+                : "px-2.5 py-1 text-xs font-semibold rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400";
+
+            questionIndexBadge.textContent = `当前进度: ${currentIndex + 1} / ${currentPool.length}`;
+            questionContainer.textContent = q.question;
+
+            // 渲染控制按钮布局 
+            if (isMulti) {
+                submitBtn.classList.remove('hidden');
+                nextBtn.classList.add('hidden');
+            } else {
+                submitBtn.classList.add('hidden');
+                nextBtn.classList.remove('hidden');
+            }
+
+            // 动态输出选项内容 
+            optionsContainer.innerHTML = "";
+            q.options.forEach((opt, idx) => {
+                const card = document.createElement('div');
+                card.className = `option-card p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 flex items-start space-x-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800`;
+                card.dataset.index = idx;
+                
+                // 字母或序号前缀
+                const prefix = String.fromCharCode(65 + idx); 
+                
+                card.innerHTML = `
+                    <div class="prefix-box w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold border border-slate-300 dark:border-slate-600 text-slate-500 bg-slate-50 dark:bg-slate-800">
+                        ${prefix}
+                    </div>
+                    <div class="flex-1 text-sm md:text-base leading-tight pt-0.5">${opt}</div>
+                `;
+                
+                // 行点击勾选绑定 
+                card.addEventListener('click', () => handleOptionClick(idx));
+                optionsContainer.appendChild(card);
+            });
+
+            updateStatsView();
+        }
+
+        // ==========================================
+        // 7. 用户交互核心逻辑（支持整行点击判定） 
+        // ==========================================
+        function handleOptionClick(idx) {
+            if (isAnswered) return;
+
+            const q = currentPool[currentIndex];
+            const isMulti = q.type === 'multi';
+
+            if (isMulti) {
+                // 多选题多选与反选逻辑
+                if (selectedIndexes.includes(idx)) {
+                    selectedIndexes = selectedIndexes.filter(i => i !== idx);
+                } else {
+                    selectedIndexes.push(idx);
+                }
+                submitBtn.disabled = selectedIndexes.length === 0;
+                refreshOptionsUI();
+            } else {
+                // 单选/判断题直接点击判定 
+                selectedIndexes = [idx];
+                checkAnswer();
+            }
+        }
+
+        function refreshOptionsUI() {
+            const cards = optionsContainer.querySelectorAll('.option-card');
+            cards.forEach(card => {
+                const idx = parseInt(card.dataset.index);
+                const prefixBox = card.querySelector('.prefix-box');
+                
+                if (selectedIndexes.includes(idx)) {
+                    card.classList.replace('border-slate-200', 'border-indigo-500');
+                    card.classList.replace('dark:border-slate-700', 'dark:border-indigo-500');
+                    card.classList.add('bg-indigo-50/50', 'dark:bg-indigo-950/20');
+                    prefixBox.className = "prefix-box w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-indigo-600 text-white";
+                } else {
+                    card.className = card.className.replace(/border-indigo-500|bg-indigo-50\/50|dark:bg-indigo-950\/20/g, '').trim();
+                    card.classList.add('border-slate-200', 'dark:border-slate-700');
+                    prefixBox.className = "prefix-box w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold border border-slate-300 dark:border-slate-600 text-slate-500 bg-slate-50 dark:bg-slate-800";
+                }
+            });
+        }
+
+        // ==========================================
+        // 8. 答案核对与判分引擎 
+        // ==========================================
+        function checkAnswer() {
+            isAnswered = true;
+            const q = currentPool[currentIndex];
+            currentRoundAnswered++;
+
+            const correctAnswers = q.answer.sort().join(',');
+            const userAnswers = selectedIndexes.sort().join(',');
+            const isCorrect = correctAnswers === userAnswers;
+
+            if (isCorrect) {
+                currentRoundCorrect++;
+                saveToHistory(q.question); // 记住错题隔离本 
+            }
+
+            // 选项状态视图染色渲染
+            const cards = optionsContainer.querySelectorAll('.option-card');
+            cards.forEach(card => {
+                const idx = parseInt(card.dataset.index);
+                const pBox = card.querySelector('.prefix-box');
+                const inCorrect = q.answer.includes(idx);
+                const inUser = selectedIndexes.includes(idx);
+
+                if (inCorrect) {
+                    // 正确选项染绿
+                    card.className = "option-card p-4 rounded-xl border border-emerald-500 dark:border-emerald-500 bg-emerald-50/30 dark:bg-emerald-950/20 flex items-start space-x-3";
+                    pBox.className = "prefix-box w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-emerald-600 text-white";
+                } else if (inUser && !inCorrect) {
+                    // 错选选项染红
+                    card.className = "option-card p-4 rounded-xl border border-rose-500 dark:border-rose-500 bg-rose-50/30 dark:bg-rose-950/20 flex items-start space-x-3";
+                    pBox.className = "prefix-box w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-rose-600 text-white";
+                } else {
+                    // 其余未选错误项灰化
+                    card.className = "option-card p-4 rounded-xl border border-slate-100 dark:border-slate-800 opacity-60 flex items-start space-x-3";
+                    pBox.className = "prefix-box w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-400";
+                }
+            });
+
+            // 展开解析展示栏 
+            const answerMap = q.answer.map(i => String.fromCharCode(65 + i)).join(', ');
+            correctAnswerTxt.textContent = answerMap;
+            explainTxt.textContent = q.explain || "本题暂无拓展深度解析。"; [cite: 2]
+            explainContainer.classList.remove('hidden');
+
+            // 转换多选下的控制按键
+            if (q.type === 'multi') { [cite: 2]
+                submitBtn.classList.add('hidden');
+                nextBtn.classList.remove('hidden');
+            }
+            updateStatsView();
+        }
+
+        function updateStatsView() {
+            progressTxt.textContent = `${currentIndex + 1} / ${currentPool.length}`;
+            const rate = currentRoundAnswered === 0 ? 0 : Math.round((currentRoundCorrect / currentRoundAnswered) * 100);
+            accuracyTxt.textContent = `${rate}%`;
+            historyTxt.textContent = getHistory().length;
+        }
+
+        // ==========================================
+        // 9. 流程驱动及状态监听
+        // ==========================================
+        nextBtn.addEventListener('click', () => {
+            if (!isAnswered && currentPool.length > 0 && currentPool[currentIndex].type !== 'multi') {
+                // 如果单选未判定结果，按下一步则不予响应
+                return;
+            }
+            
+            if (currentIndex < currentPool.length - 1) {
+                currentIndex++;
+                renderCurrentQuestion();
+            } else {
+                alert(`🎉 恭喜完成本轮次测试！本次答对 ${currentRoundCorrect} 道题，点击确认开始下一组。`);
+                initNewRound();
+            }
+        });
+
+        submitBtn.addEventListener('click', () => {
+            if (!isAnswered && selectedIndexes.length > 0) {
+                checkAnswer();
+            }
+        });
+
+        // 切换题库监听器 
+        bankSelect.addEventListener('change', (e) => {
+            currentBankKey = e.target.value; [cite: 1]
+            initNewRound(); [cite: 1]
+        });
+
+        clearHistoryBtn.addEventListener('click', clearCurrentBankHistory);
+
+        // ==========================================
+        // 10. 暗黑夜间主题管理机制
+        // ==========================================
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+
+        themeToggle.addEventListener('click', () => {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+        });
+    </script>
+</body>
+</html>
