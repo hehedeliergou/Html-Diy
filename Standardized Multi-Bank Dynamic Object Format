@@ -1,0 +1,28 @@
+// Format Name: Standardized Multi-Bank Dynamic Object Format
+const DATA_CENTER = {
+  "题库分类名称一（如大学物理）": [
+    {
+      "type": "single",
+      "question": "这里是单选题的题目文本内容（  ）",
+      "options": ["选项 A", "选项 B", "选项 C", "选项 D"],
+      "answer": [2], 
+      "explain": "这里是错题解析或速解技巧。注意：answer 数组内的数字代表正确答案在 options 中的索引下标（从 0 开始计数，0=A, 1=B, 2=C...）。"
+    },
+    {
+      "type": "single",
+      "question": "这里是判断题的题目文本内容。",
+      "options": ["正确", "错误"],
+      "answer": [0], 
+      "explain": "这里是判断题的解析。0 代表正确，1 代表错误。"
+    }
+  ],
+  "题库分类名称二（如联合冶金技术）": [
+    {
+      "type": "multiple",
+      "question": "这里是多选题的题目文本内容（  ）",
+      "options": ["正确项一", "错误项", "正确项二", "干扰项"],
+      "answer": [0, 2], 
+      "explain": "这里是多选题解析。answer 数组内包含所有正确选项的索引下标。"
+    }
+  ]
+};
