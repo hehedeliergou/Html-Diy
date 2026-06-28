@@ -108,6 +108,7 @@
         let currentIndex = 0;
         let selectedIndexes = [];
         let isAnswered = false;
+        let autoNextTimer = null; 
 
         let currentRoundCorrect = 0;
         let currentRoundAnswered = 0;
@@ -127,7 +128,6 @@
         const progressTxt = document.getElementById('progressTxt');
         const accuracyTxt = document.getElementById('accuracyTxt');
         const historyTxt = document.getElementById('historyTxt');
-        
         const submitBtn = document.getElementById('submitBtn');
         const nextBtn = document.getElementById('nextBtn');
         const clearHistoryBtn = document.getElementById('clearHistoryBtn');
@@ -165,12 +165,10 @@
         // ==========================================
         function initNewRound() {
             if (!currentBankKey || !DATA_CENTER[currentBankKey]) return;
-            
             const totalBank = DATA_CENTER[currentBankKey];
             const history = getHistory();
             
             let available = totalBank.filter(q => !history.includes(q.question));
-            
             if (available.length === 0) {
                 localStorage.removeItem(`brush_history_${currentBankKey}`);
                 available = [...totalBank];
@@ -191,6 +189,7 @@
         // 6. 渲染题目
         // ==========================================
         function renderCurrentQuestion() {
+            if (autoNextTimer) clearTimeout(autoNextTimer); 
             selectedIndexes = [];
             isAnswered = false;
             explainContainer.classList.add('hidden');
@@ -209,7 +208,6 @@
             questionTypeBadge.className = isMulti 
                 ? "px-2.5 py-1 text-xs font-semibold rounded-md bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400"
                 : "px-2.5 py-1 text-xs font-semibold rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400";
-
             questionIndexBadge.textContent = `当前进度: ${currentIndex + 1} / ${currentPool.length}`;
             questionContainer.textContent = q.question;
 
@@ -222,11 +220,17 @@
             }
 
             optionsContainer.innerHTML = "";
-            q.options.forEach((opt, idx) => {
+            
+            const shuffledIndices = q.options.map((_, i) => i).sort(() => Math.random() - 0.5);
+            
+            shuffledIndices.forEach((idx, renderIdx) => {
+                const opt = q.options[idx];
                 const card = document.createElement('div');
                 card.className = `option-card p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 flex items-start space-x-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800`;
                 card.dataset.index = idx;
-                const prefix = String.fromCharCode(65 + idx); 
+                
+                const prefix = String.fromCharCode(65 + renderIdx); 
+                
                 card.innerHTML = `
                     <div class="prefix-box w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold border border-slate-300 dark:border-slate-600 text-slate-500 bg-slate-50 dark:bg-slate-800">
                         ${prefix}
@@ -236,7 +240,6 @@
                 card.addEventListener('click', () => handleOptionClick(idx));
                 optionsContainer.appendChild(card);
             });
-
             updateStatsView();
         }
 
@@ -247,7 +250,6 @@
             if (isAnswered) return;
             const q = currentPool[currentIndex];
             const isMulti = q.type === 'multi';
-
             if (isMulti) {
                 if (selectedIndexes.includes(idx)) {
                     selectedIndexes = selectedIndexes.filter(i => i !== idx);
@@ -291,7 +293,7 @@
             const correctAnswers = q.answer.sort().join(',');
             const userAnswers = selectedIndexes.sort().join(',');
             const isCorrect = correctAnswers === userAnswers;
-
+            
             if (isCorrect) {
                 currentRoundCorrect++;
                 saveToHistory(q.question);
@@ -325,7 +327,14 @@
                 submitBtn.classList.add('hidden');
                 nextBtn.classList.remove('hidden');
             }
+            
             updateStatsView();
+
+            if (isCorrect) {
+                autoNextTimer = setTimeout(() => {
+                    if (isAnswered) goToNext();
+                }, 1200);
+            }
         }
 
         function updateStatsView() {
@@ -335,13 +344,7 @@
             historyTxt.textContent = getHistory().length;
         }
 
-        // ==========================================
-        // 9. 按钮事件
-        // ==========================================
-        nextBtn.addEventListener('click', () => {
-            if (!isAnswered && currentPool.length > 0 && currentPool[currentIndex].type !== 'multi') {
-                return;
-            }
+        function goToNext() {
             if (currentIndex < currentPool.length - 1) {
                 currentIndex++;
                 renderCurrentQuestion();
@@ -349,6 +352,16 @@
                 alert(`本轮完成！答对 ${currentRoundCorrect} 题，确认开始下一组`);
                 initNewRound();
             }
+        }
+
+        // ==========================================
+        // 9. 按钮事件
+        // ==========================================
+        nextBtn.addEventListener('click', () => {
+            if (!isAnswered && currentPool.length > 0 && currentPool[currentIndex].type !== 'multi') {
+                return;
+            }
+            goToNext();
         });
 
         submitBtn.addEventListener('click', () => {
@@ -362,7 +375,6 @@
 
         clearHistoryBtn.addEventListener('click', clearCurrentBankHistory);
 
-        // 初始化下拉框
         function initBankSelectOptions() {
             while (bankSelect.options.length > 1) bankSelect.remove(1);
             const nameMap = {};
