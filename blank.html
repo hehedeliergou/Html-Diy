@@ -1,405 +1,313 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
+<html lang="zh-CN" class="light"> <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>通用多题库智能刷题系统</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>DIY 刷题系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class', 
+        }
+    </script>
     <style>
-        /* 隐藏滚动条但保持可滚动 */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        /* 选项平滑过渡 */
-        .option-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        .option-btn { transition: all 0.2s ease; }
+        .option-btn:hover:not(:disabled) { transform: translateX(5px); }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-300">
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 min-h-screen p-4 md:p-8 transition-colors duration-300">
 
-    <header class="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-50 border-b border-slate-200 dark:border-slate-700 transition-colors duration-300">
-        <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <i class="fa-solid fa-graduation-cap text-indigo-600 dark:text-indigo-400 text-2xl"></i>
-                <select id="bankSelect" class="bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold py-1.5 px-3 rounded-lg border-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-base max-w-[180px] md:max-w-xs outline-none">
-                    <option value="" disabled selected>请先添加题库...</option>
-                </select>
+    <div class="max-w-3xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 md:p-10 transition-colors duration-300">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-8 border-b dark:border-slate-700 pb-4">
+            <h1 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-4 md:mb-0">刷题练习</h1>
+            <div class="flex items-center gap-4">
+                <select id="bankSelect" class="border dark:border-slate-600 rounded px-3 py-1 bg-slate-50 dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors">
+                    </select>
+                <span id="progressText" class="text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">0 / 0</span>
+                <button id="themeToggleBtn" class="p-2 rounded-lg border dark:border-slate-600 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors focus:outline-none" title="切换深色/浅色模式">
+                    🌙
+                </button>
             </div>
+        </div>
+
+        <div id="questionArea" class="hidden">
+            <h2 id="questionText" class="text-lg md:text-xl font-semibold mb-6 leading-relaxed"></h2>
             
-            <div class="flex items-center space-x-4">
-                <button id="themeToggle" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400">
-                    <i class="fa-solid fa-moon text-xl dark:hidden"></i>
-                    <i class="fa-solid fa-sun text-xl hidden dark:block"></i>
-                </button>
-            </div>
-        </div>
-    </header>
-
-    <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-6 flex flex-col gap-4">
-        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-xs border border-slate-100 dark:border-slate-700/50 grid grid-cols-3 gap-2 text-center transition-colors duration-300">
-            <div>
-                <p class="text-xs text-slate-400 dark:text-slate-500 mb-1">当前进度</p>
-                <p class="text-lg font-bold text-slate-700 dark:text-slate-300" id="progressTxt">0 / 0</p>
-            </div>
-            <div>
-                <p class="text-xs text-slate-400 dark:text-slate-500 mb-1">本次正确率</p>
-                <p class="text-lg font-bold text-emerald-600 dark:text-emerald-400" id="accuracyTxt">0%</p>
-            </div>
-            <div>
-                <p class="text-xs text-slate-400 dark:text-slate-500 mb-1">已去重记忆</p>
-                <p class="text-lg font-bold text-indigo-600 dark:text-indigo-400" id="historyTxt">0</p>
-            </div>
-        </div>
-
-        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50 flex-1 flex flex-col min-h-[350px] transition-colors duration-300">
-            <div class="flex items-center justify-between mb-4">
-                <span id="questionTypeBadge" class="px-2.5 py-1 text-xs font-semibold rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
-                    单选题
-                </span>
-                <span id="questionIndexBadge" class="text-xs text-slate-400 dark:text-slate-500">
-                    题目序号: --
-                </span>
-            </div>
-
-            <div id="questionContainer" class="text-base md:text-lg font-medium leading-relaxed mb-6 text-slate-800 dark:text-slate-100">
-                请在顶部选择或在代码中配置您的题库数据。
-            </div>
-
-            <div id="optionsContainer" class="space-y-3 flex-1">
-            </div>
-
-            <div id="explainContainer" class="mt-6 p-4 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-100 dark:border-slate-800 hidden">
-                <div class="flex items-center space-x-2 text-sm font-bold mb-2">
-                    <i class="fa-solid fa-circle-info text-indigo-500"></i>
-                    <span>参考解析：</span>
-                    <span id="correctAnswerTxt" class="text-emerald-600 dark:text-emerald-400 ml-2"></span>
+            <div id="optionsContainer" class="flex flex-col gap-3 mb-8">
                 </div>
-                <p id="explainTxt" class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed"></p>
-            </div>
-        </div>
-    </main>
 
-    <footer class="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 py-4 sticky bottom-0 z-40 transition-colors duration-300">
-        <div class="max-w-4xl mx-auto px-4 flex items-center justify-between gap-4">
-            <button id="clearHistoryBtn" class="px-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 text-sm font-medium hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors">
-                <i class="fa-solid fa-trash-can mr-1.5"></i>重置当前库
-            </button>
-            <div class="flex items-center gap-3 flex-1 justify-end">
-                <button id="submitBtn" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-xs disabled:opacity-40 transition-all hidden">
-                    提交答案
-                </button>
-                <button id="nextBtn" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 text-sm font-semibold shadow-xs hover:bg-slate-700 dark:hover:bg-slate-200 transition-all">
-                    下一题 <i class="fa-solid fa-arrow-right ml-1"></i>
+            <div id="feedbackArea" class="hidden p-4 rounded-lg mb-6 transition-colors duration-300">
+                <p id="feedbackText" class="font-bold mb-2"></p>
+                <p id="explanationText" class="text-sm md:text-base leading-relaxed"></p>
+            </div>
+
+            <div class="flex justify-end">
+                <button id="nextBtn" class="hidden bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 px-6 py-2 rounded-lg hover:bg-slate-700 dark:hover:bg-slate-300 transition font-medium shadow">
+                    下一题 (Enter)
                 </button>
             </div>
         </div>
-    </footer>
+
+        <div id="resultArea" class="hidden text-center py-10">
+            <h2 class="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mb-4">本轮练习完成！</h2>
+            <p id="scoreText" class="text-xl mb-8 dark:text-slate-300"></p>
+            <button onclick="startQuiz()" class="bg-indigo-600 dark:bg-indigo-500 text-white px-8 py-3 rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition font-bold shadow-lg">
+                重新开始 (Enter)
+            </button>
+        </div>
+    </div>
 
     <script>
         // ==========================================
-        // 1. 数据中心（自行添加题库）
+        // 0. 主题模式 (Dark Mode) 手动切换逻辑
         // ==========================================
-        const DATA_CENTER = {};
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        const htmlElement = document.documentElement;
 
-        // ==========================================
-        // 2. 系统全局状态管理 
-        // ==========================================
-        let currentBankKey = "";
-        let currentPool = [];
-        let currentIndex = 0;
-        let selectedIndexes = [];
-        let isAnswered = false;
-        let autoNextTimer = null; 
-
-        let currentRoundCorrect = 0;
-        let currentRoundAnswered = 0;
-
-        // ==========================================
-        // 3. DOM 元素初始化挂载
-        // ==========================================
-        const bankSelect = document.getElementById('bankSelect');
-        const questionTypeBadge = document.getElementById('questionTypeBadge');
-        const questionIndexBadge = document.getElementById('questionIndexBadge');
-        const questionContainer = document.getElementById('questionContainer');
-        const optionsContainer = document.getElementById('optionsContainer');
-        const explainContainer = document.getElementById('explainContainer');
-        const correctAnswerTxt = document.getElementById('correctAnswerTxt');
-        const explainTxt = document.getElementById('explainTxt');
-        
-        const progressTxt = document.getElementById('progressTxt');
-        const accuracyTxt = document.getElementById('accuracyTxt');
-        const historyTxt = document.getElementById('historyTxt');
-        const submitBtn = document.getElementById('submitBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
-        const themeToggle = document.getElementById('themeToggle');
-
-        // ==========================================
-        // 4. 本地存储历史记录
-        // ==========================================
-        function getHistory() {
-            if (!currentBankKey) return [];
-            const data = localStorage.getItem(`brush_history_${currentBankKey}`);
-            return data ? JSON.parse(data) : [];
-        }
-
-        function saveToHistory(questionStr) {
-            if (!currentBankKey) return;
-            let history = getHistory();
-            if (!history.includes(questionStr)) {
-                history.push(questionStr);
-                localStorage.setItem(`brush_history_${currentBankKey}`, JSON.stringify(history));
-            }
-            updateStatsView();
-        }
-
-        function clearCurrentBankHistory() {
-            if (!currentBankKey) return;
-            if (confirm(`确定要清空【${bankSelect.options[bankSelect.selectedIndex].text}】的刷题记录吗？`)) {
-                localStorage.removeItem(`brush_history_${currentBankKey}`);
-                initNewRound();
-            }
-        }
-
-        // ==========================================
-        // 5. 抽题逻辑
-        // ==========================================
-        function initNewRound() {
-            if (!currentBankKey || !DATA_CENTER[currentBankKey]) return;
-            const totalBank = DATA_CENTER[currentBankKey];
-            const history = getHistory();
-            
-            let available = totalBank.filter(q => !history.includes(q.question));
-            if (available.length === 0) {
-                localStorage.removeItem(`brush_history_${currentBankKey}`);
-                available = [...totalBank];
-            }
-            
-            const shuffled = available.sort(() => Math.random() - 0.5);
-            const drawSize = Math.min(10, shuffled.length);
-            currentPool = shuffled.slice(0, drawSize);
-            
-            currentIndex = 0;
-            currentRoundCorrect = 0;
-            currentRoundAnswered = 0;
-            
-            renderCurrentQuestion();
-        }
-
-        // ==========================================
-        // 6. 渲染题目
-        // ==========================================
-        function renderCurrentQuestion() {
-            if (autoNextTimer) clearTimeout(autoNextTimer); 
-            selectedIndexes = [];
-            isAnswered = false;
-            explainContainer.classList.add('hidden');
-            submitBtn.disabled = true;
-
-            if (currentPool.length === 0) {
-                questionContainer.innerHTML = `<div class="text-center py-8 text-slate-400">当前题库无有效题目数据。</div>`;
-                optionsContainer.innerHTML = "";
-                return;
-            }
-
-            const q = currentPool[currentIndex];
-            const isMulti = q.type === 'multi';
-
-            questionTypeBadge.textContent = isMulti ? "多选题" : (q.options.length === 2 ? "判断题" : "单选题");
-            questionTypeBadge.className = isMulti 
-                ? "px-2.5 py-1 text-xs font-semibold rounded-md bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400"
-                : "px-2.5 py-1 text-xs font-semibold rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400";
-            questionIndexBadge.textContent = `当前进度: ${currentIndex + 1} / ${currentPool.length}`;
-            questionContainer.textContent = q.question;
-
-            if (isMulti) {
-                submitBtn.classList.remove('hidden');
-                nextBtn.classList.add('hidden');
-            } else {
-                submitBtn.classList.add('hidden');
-                nextBtn.classList.remove('hidden');
-            }
-
-            optionsContainer.innerHTML = "";
-            
-            const shuffledIndices = q.options.map((_, i) => i).sort(() => Math.random() - 0.5);
-            
-            shuffledIndices.forEach((idx, renderIdx) => {
-                const opt = q.options[idx];
-                const card = document.createElement('div');
-                card.className = `option-card p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 flex items-start space-x-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800`;
-                card.dataset.index = idx;
-                
-                const prefix = String.fromCharCode(65 + renderIdx); 
-                
-                card.innerHTML = `
-                    <div class="prefix-box w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold border border-slate-300 dark:border-slate-600 text-slate-500 bg-slate-50 dark:bg-slate-800">
-                        ${prefix}
-                    </div>
-                    <div class="flex-1 text-sm md:text-base leading-tight pt-0.5">${opt}</div>
-                `;
-                card.addEventListener('click', () => handleOptionClick(idx));
-                optionsContainer.appendChild(card);
-            });
-            updateStatsView();
-        }
-
-        // ==========================================
-        // 7. 选项点击
-        // ==========================================
-        function handleOptionClick(idx) {
-            if (isAnswered) return;
-            const q = currentPool[currentIndex];
-            const isMulti = q.type === 'multi';
-            if (isMulti) {
-                if (selectedIndexes.includes(idx)) {
-                    selectedIndexes = selectedIndexes.filter(i => i !== idx);
-                } else {
-                    selectedIndexes.push(idx);
-                }
-                submitBtn.disabled = selectedIndexes.length === 0;
-                refreshOptionsUI();
-            } else {
-                selectedIndexes = [idx];
-                checkAnswer();
-            }
-        }
-
-        function refreshOptionsUI() {
-            const cards = optionsContainer.querySelectorAll('.option-card');
-            cards.forEach(card => {
-                const idx = parseInt(card.dataset.index);
-                const prefixBox = card.querySelector('.prefix-box');
-                if (selectedIndexes.includes(idx)) {
-                    card.classList.replace('border-slate-200', 'border-indigo-500');
-                    card.classList.replace('dark:border-slate-700', 'dark:border-indigo-500');
-                    card.classList.add('bg-indigo-50/50', 'dark:bg-indigo-950/20');
-                    prefixBox.className = "prefix-box w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-indigo-600 text-white";
-                } else {
-                    card.className = card.className.replace(/border-indigo-500|bg-indigo-50\/50|dark:bg-indigo-950\/20/g, '').trim();
-                    card.classList.add('border-slate-200', 'dark:border-slate-700');
-                    prefixBox.className = "prefix-box w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold border border-slate-300 dark:border-slate-600 text-slate-500 bg-slate-50 dark:bg-slate-800";
-                }
-            });
-        }
-
-        // ==========================================
-        // 8. 判分逻辑
-        // ==========================================
-        function checkAnswer() {
-            isAnswered = true;
-            const q = currentPool[currentIndex];
-            currentRoundAnswered++;
-
-            const correctAnswers = q.answer.sort().join(',');
-            const userAnswers = selectedIndexes.sort().join(',');
-            const isCorrect = correctAnswers === userAnswers;
-            
-            if (isCorrect) {
-                currentRoundCorrect++;
-                saveToHistory(q.question);
-            }
-
-            const cards = optionsContainer.querySelectorAll('.option-card');
-            cards.forEach(card => {
-                const idx = parseInt(card.dataset.index);
-                const pBox = card.querySelector('.prefix-box');
-                const inCorrect = q.answer.includes(idx);
-                const inUser = selectedIndexes.includes(idx);
-
-                if (inCorrect) {
-                    card.className = "option-card p-4 rounded-xl border border-emerald-500 dark:border-emerald-500 bg-emerald-50/30 dark:bg-emerald-950/20 flex items-start space-x-3";
-                    pBox.className = "prefix-box w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-emerald-600 text-white";
-                } else if (inUser && !inCorrect) {
-                    card.className = "option-card p-4 rounded-xl border border-rose-500 dark:border-rose-500 bg-rose-50/30 dark:bg-rose-950/20 flex items-start space-x-3";
-                    pBox.className = "prefix-box w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-rose-600 text-white";
-                } else {
-                    card.className = "option-card p-4 rounded-xl border border-slate-100 dark:border-slate-800 opacity-60 flex items-start space-x-3";
-                    pBox.className = "prefix-box w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-400";
-                }
-            });
-
-            const answerMap = q.answer.map(i => String.fromCharCode(65 + i)).join(', ');
-            correctAnswerTxt.textContent = answerMap;
-            explainTxt.textContent = q.explain || "本题暂无解析。";
-            explainContainer.classList.remove('hidden');
-
-            if (q.type === 'multi') {
-                submitBtn.classList.add('hidden');
-                nextBtn.classList.remove('hidden');
-            }
-            
-            updateStatsView();
-
-            if (isCorrect) {
-                autoNextTimer = setTimeout(() => {
-                    if (isAnswered) goToNext();
-                }, 1200);
-            }
-        }
-
-        function updateStatsView() {
-            progressTxt.textContent = `${currentIndex + 1} / ${currentPool.length}`;
-            const rate = currentRoundAnswered === 0 ? 0 : Math.round((currentRoundCorrect / currentRoundAnswered) * 100);
-            accuracyTxt.textContent = `${rate}%`;
-            historyTxt.textContent = getHistory().length;
-        }
-
-        function goToNext() {
-            if (currentIndex < currentPool.length - 1) {
-                currentIndex++;
-                renderCurrentQuestion();
-            } else {
-                alert(`本轮完成！答对 ${currentRoundCorrect} 题，确认开始下一组`);
-                initNewRound();
-            }
-        }
-
-        // ==========================================
-        // 9. 按钮事件
-        // ==========================================
-        nextBtn.addEventListener('click', () => {
-            if (!isAnswered && currentPool.length > 0 && currentPool[currentIndex].type !== 'multi') {
-                return;
-            }
-            goToNext();
-        });
-
-        submitBtn.addEventListener('click', () => {
-            if (!isAnswered && selectedIndexes.length > 0) checkAnswer();
-        });
-
-        bankSelect.addEventListener('change', (e) => {
-            currentBankKey = e.target.value;
-            initNewRound();
-        });
-
-        clearHistoryBtn.addEventListener('click', clearCurrentBankHistory);
-
-        function initBankSelectOptions() {
-            while (bankSelect.options.length > 1) bankSelect.remove(1);
-            const nameMap = {};
-            Object.keys(DATA_CENTER).forEach(key => {
-                const opt = document.createElement('option');
-                opt.value = key;
-                opt.textContent = nameMap[key] || key;
-                bankSelect.appendChild(opt);
-            });
-        }
-        initBankSelectOptions();
-
-        // ==========================================
-        // 10. 暗黑模式
-        // ==========================================
+        // 初始化检查：如果有本地缓存，则使用缓存；如果没有，看系统是不是深色模式
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
+            htmlElement.classList.add('dark');
+            themeToggleBtn.textContent = '☀️';
         } else {
-            document.documentElement.classList.remove('dark');
+            htmlElement.classList.remove('dark');
+            themeToggleBtn.textContent = '🌙';
         }
 
-        themeToggle.addEventListener('click', () => {
-            document.documentElement.classList.toggle('dark');
-            localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+        // 按钮点击事件：切换状态并保存到缓存
+        themeToggleBtn.addEventListener('click', () => {
+            htmlElement.classList.toggle('dark');
+            if (htmlElement.classList.contains('dark')) {
+                localStorage.theme = 'dark';
+                themeToggleBtn.textContent = '☀️';
+            } else {
+                localStorage.theme = 'light';
+                themeToggleBtn.textContent = '🌙';
+            }
         });
+
+        // ==========================================
+        // 1. 数据中心 (Standardized Multi-Bank Object Format)
+        // ==========================================
+        const DATA_CENTER = {
+            "默认题库": [
+                {
+                    "type": "single",
+                    "question": "这是一个示例题目，请问 A 选项对应的快捷键是什么？",
+                    "options": [
+                        "按键盘 A 键 或 1 键",
+                        "按键盘 B 键 或 2 键",
+                        "按键盘 C 键 或 3 键",
+                        "按键盘 D 键 或 4 键"
+                    ],
+                    "answer": [0],
+                    "explain": "在这个升级版系统中，你既可以按 A、B、C、D，也可以按数字 1、2、3、4 来快速选择对应的选项。"
+                }
+                // 在这里粘贴你的其他题库...
+            ]
+        };
+
+        // ==========================================
+        // 2. 核心状态变量
+        // ==========================================
+        let currentBankKey = Object.keys(DATA_CENTER)[0];
+        let currentQuestions = [];
+        let currentIndex = 0;
+        let score = 0;
+        let isAnswered = false;
+
+        let historyRecords = JSON.parse(localStorage.getItem('quizHistory')) || {};
+
+        // DOM 元素
+        const bankSelect = document.getElementById('bankSelect');
+        const questionArea = document.getElementById('questionArea');
+        const resultArea = document.getElementById('resultArea');
+        const questionText = document.getElementById('questionText');
+        const optionsContainer = document.getElementById('optionsContainer');
+        const feedbackArea = document.getElementById('feedbackArea');
+        const feedbackText = document.getElementById('feedbackText');
+        const explanationText = document.getElementById('explanationText');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressText = document.getElementById('progressText');
+        const scoreText = document.getElementById('scoreText');
+
+        // ==========================================
+        // 3. 初始化逻辑
+        // ==========================================
+        window.onload = () => {
+            for (let key in DATA_CENTER) {
+                let option = document.createElement('option');
+                option.value = key;
+                option.textContent = key;
+                bankSelect.appendChild(option);
+            }
+            
+            bankSelect.addEventListener('change', (e) => {
+                currentBankKey = e.target.value;
+                startQuiz();
+            });
+
+            startQuiz();
+            initKeyboardShortcuts();
+        };
+
+        // ==========================================
+        // 4. 键盘快捷键监听 (强化版)
+        // ==========================================
+        function initKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                const key = e.key.toLowerCase();
+
+                // Enter 跳转或重新开始
+                if (key === 'enter') {
+                    if (!resultArea.classList.contains('hidden')) {
+                        startQuiz();
+                        return;
+                    }
+                    if (!questionArea.classList.contains('hidden') && !nextBtn.classList.contains('hidden')) {
+                        nextBtn.click();
+                    }
+                }
+
+                // 快捷键: A, B, C, D / 1, 2, 3, 4
+                if (['a', 'b', 'c', 'd', '1', '2', '3', '4'].includes(key)) {
+                    if (isAnswered || !resultArea.classList.contains('hidden')) return; 
+                    
+                    const keyToIndex = { 
+                        'a': 0, 'b': 1, 'c': 2, 'd': 3,
+                        '1': 0, '2': 1, '3': 2, '4': 3 
+                    };
+                    const targetIndex = keyToIndex[key];
+                    
+                    const optionButtons = document.querySelectorAll('.option-btn');
+                    if (optionButtons[targetIndex]) {
+                        optionButtons[targetIndex].click();
+                    }
+                }
+            });
+        }
+
+        // ==========================================
+        // 5. 核心业务逻辑
+        // ==========================================
+        function startQuiz() {
+            const bank = DATA_CENTER[currentBankKey];
+            if (!bank || bank.length === 0) return;
+
+            if (!historyRecords[currentBankKey]) {
+                historyRecords[currentBankKey] = [];
+            }
+            let doneIds = historyRecords[currentBankKey];
+
+            if (bank.length - doneIds.length < 1) {
+                doneIds = [];
+                historyRecords[currentBankKey] = [];
+                localStorage.setItem('quizHistory', JSON.stringify(historyRecords));
+            }
+
+            let availableQuestions = bank.filter((_, index) => !doneIds.includes(index));
+            currentQuestions = availableQuestions.sort(() => Math.random() - 0.5).slice(0, 10);
+            
+            currentQuestions.forEach(q => {
+                const originalIndex = bank.indexOf(q);
+                if (!doneIds.includes(originalIndex)) {
+                    doneIds.push(originalIndex);
+                }
+            });
+            localStorage.setItem('quizHistory', JSON.stringify(historyRecords));
+
+            currentIndex = 0;
+            score = 0;
+            resultArea.classList.add('hidden');
+            questionArea.classList.remove('hidden');
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            isAnswered = false;
+            nextBtn.classList.add('hidden');
+            feedbackArea.classList.add('hidden');
+            optionsContainer.innerHTML = '';
+            
+            progressText.textContent = `${currentIndex + 1} / ${currentQuestions.length}`;
+            
+            const q = currentQuestions[currentIndex];
+            questionText.textContent = `${currentIndex + 1}. ${q.question}`;
+
+            let optionsWithIndex = q.options.map((opt, idx) => ({ text: opt, originalIndex: idx }));
+            optionsWithIndex = optionsWithIndex.sort(() => Math.random() - 0.5);
+
+            const labels = ['A', 'B', 'C', 'D'];
+
+            optionsWithIndex.forEach((optData, renderIndex) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn w-full text-left p-4 rounded-lg border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:border-indigo-400 dark:hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 focus:outline-none relative';
+                
+                btn.innerHTML = `<span class="font-bold text-indigo-600 dark:text-indigo-400 mr-2">${labels[renderIndex]}.</span> ${optData.text}`;
+                
+                btn.onclick = () => checkAnswer(optData.originalIndex, btn, q, optionsWithIndex);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selectedOriginalIndex, selectedBtn, questionData, optionsWithIndex) {
+            if (isAnswered) return;
+            isAnswered = true;
+
+            const isCorrect = questionData.answer.includes(selectedOriginalIndex);
+            const allBtns = document.querySelectorAll('.option-btn');
+
+            allBtns.forEach(btn => {
+                btn.disabled = true;
+                btn.classList.remove('hover:border-indigo-400', 'dark:hover:border-indigo-400', 'hover:bg-indigo-50', 'dark:hover:bg-indigo-900/40');
+                btn.classList.add('cursor-not-allowed', 'opacity-80');
+            });
+
+            feedbackArea.classList.remove('hidden', 'bg-green-50', 'text-green-800', 'dark:bg-green-900/30', 'dark:text-green-300', 'bg-red-50', 'text-red-800', 'dark:bg-red-900/30', 'dark:text-red-300');
+            explanationText.innerHTML = `<strong>【解析】</strong> ${questionData.explain}`;
+
+            if (isCorrect) {
+                score++;
+                selectedBtn.classList.remove('border-slate-200', 'dark:border-slate-600', 'bg-white', 'dark:bg-slate-700');
+                selectedBtn.classList.add('border-green-500', 'dark:border-green-400', 'bg-green-100', 'dark:bg-green-900/50');
+                
+                feedbackArea.classList.add('bg-green-50', 'text-green-800', 'dark:bg-green-900/30', 'dark:text-green-300');
+                feedbackText.textContent = "✅ 回答正确！(1.2秒后自动进入下一题)";
+                
+                setTimeout(nextQuestion, 1200);
+            } else {
+                selectedBtn.classList.remove('border-slate-200', 'dark:border-slate-600', 'bg-white', 'dark:bg-slate-700');
+                selectedBtn.classList.add('border-red-500', 'dark:border-red-400', 'bg-red-100', 'dark:bg-red-900/50');
+                
+                const correctRenderIndex = optionsWithIndex.findIndex(o => questionData.answer.includes(o.originalIndex));
+                if (correctRenderIndex !== -1) {
+                    allBtns[correctRenderIndex].classList.remove('border-slate-200', 'dark:border-slate-600', 'bg-white', 'dark:bg-slate-700');
+                    allBtns[correctRenderIndex].classList.add('border-green-500', 'dark:border-green-400', 'bg-green-100', 'dark:bg-green-900/50');
+                }
+
+                feedbackArea.classList.add('bg-red-50', 'text-red-800', 'dark:bg-red-900/30', 'dark:text-red-300');
+                feedbackText.textContent = "❌ 回答错误！";
+                
+                nextBtn.classList.remove('hidden');
+            }
+        }
+
+        function nextQuestion() {
+            currentIndex++;
+            if (currentIndex < currentQuestions.length) {
+                renderQuestion();
+            } else {
+                showResult();
+            }
+        }
+
+        function showResult() {
+            questionArea.classList.add('hidden');
+            resultArea.classList.remove('hidden');
+            const acc = Math.round((score / currentQuestions.length) * 100);
+            scoreText.innerHTML = `你完成了 ${currentQuestions.length} 道题<br>答对 ${score} 道<br>正确率：<span class="font-bold text-indigo-600 dark:text-indigo-400">${acc}%</span>`;
+        }
+        
+        nextBtn.addEventListener('click', nextQuestion);
     </script>
 </body>
 </html>
